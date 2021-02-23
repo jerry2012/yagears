@@ -1,4 +1,4 @@
-AC_INIT(yagears, 2.5)
+AC_INIT(yagears, 2.6)
 
 AC_CONFIG_HEADERS(config.h)
 
@@ -54,6 +54,9 @@ AC_ARG_ENABLE(egl-drm,
 AC_ARG_ENABLE(egl-rpi,
               AS_HELP_STRING(--disable-egl-rpi, disable EGL interface for Raspberry Pi Dispmanx Backend),
               enable_egl_rpi=no, enable_egl_rpi=yes)
+AC_ARG_ENABLE(waffle,
+              AS_HELP_STRING(--disable-waffle, disable Waffle cross-platform wrapper),
+              enable_waffle=no, enable_waffle=yes)
 
 AC_ARG_ENABLE(vk-x11,
               AS_HELP_STRING(--disable-vk-x11, disable Vulkan extension for Xlib WSI),
@@ -258,7 +261,7 @@ if test x$enable_egl_x11 = xyes -o x$enable_egl_directfb = xyes -o x$enable_egl_
     fi
 
     if test x$enable_egl_drm = xyes; then
-      PKG_CHECK_MODULES(DRM, gbm libdrm libevdev, , enable_egl_drm=no)
+      PKG_CHECK_MODULES(DRM, dri gbm libdrm libevdev, , enable_egl_drm=no)
       if test x$enable_egl_drm = xyes; then
         DRIDRIVERDIR=`$PKG_CONFIG --variable=dridriverdir dri`
         MODVERSION=`$PKG_CONFIG --modversion dri`
@@ -304,7 +307,16 @@ if test x$enable_egl_rpi = xyes; then
   AC_DEFINE(EGL_RPI, , Support for EGL with Raspberry Pi Dispmanx platform)
 fi
 
-if test x$enable_gl_x11 = xno -a x$enable_gl_directfb = xno -a x$enable_gl_fbdev = xno -a x$enable_egl_x11 = xno -a x$enable_egl_directfb = xno -a x$enable_egl_fbdev = xno -a x$enable_egl_wayland = xno -a x$enable_egl_xcb = xno -a x$enable_egl_drm = xno -a x$enable_egl_rpi = xno; then
+if test x$enable_waffle = xyes; then
+  PKG_CHECK_MODULES(WAFFLE, libinput waffle-1, enable_waffle=yes, enable_waffle=no)
+else
+  enable_waffle=no
+fi
+if test x$enable_waffle = xyes; then
+  AC_DEFINE(WAFFLE, , Support for Waffle cross-platform wrapper)
+fi
+
+if test x$enable_gl_x11 = xno -a x$enable_gl_directfb = xno -a x$enable_gl_fbdev = xno -a x$enable_egl_x11 = xno -a x$enable_egl_directfb = xno -a x$enable_egl_fbdev = xno -a x$enable_egl_wayland = xno -a x$enable_egl_xcb = xno -a x$enable_egl_drm = xno -a x$enable_egl_rpi = xno -a x$enable_waffle = xno; then
   AC_MSG_ERROR(No OpenGL Backends found)
 fi
 
@@ -342,7 +354,7 @@ if test x$enable_vk_x11 = xyes -o x$enable_vk_directfb = xyes -o x$enable_vk_fbd
     if test x$enable_vk_wayland = xyes; then
       AC_CHECK_LIB(vulkan, vkCreateWaylandSurfaceKHR, , enable_vk_wayland=no)
       if test x$enable_vk_wayland = xyes; then
-        if x$enable_egl_wayland = xno; then
+        if test x$enable_egl_wayland = xno; then
           PKG_CHECK_MODULES(WAYLAND, wayland-client xkbcommon, , enable_vk_wayland=no)
           if test x$enable_vk_wayland = xyes; then
             AC_MSG_CHECKING(for wl_shell_surface_set_position)
@@ -561,6 +573,7 @@ echo "     EGL interface for Wayland      $enable_egl_wayland"
 echo "     EGL interface for XCB          $enable_egl_xcb"
 echo "     EGL interface for DRM          $enable_egl_drm"
 echo "     EGL interface for RPi Dispmanx $enable_egl_rpi"
+echo "  Waffle cross-platform wrapper     $enable_waffle"
 echo
 
 echo
